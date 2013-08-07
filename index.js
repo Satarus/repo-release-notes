@@ -46,24 +46,28 @@ traversal.findRepositories(process.cwd, function(repository){
     console.log("New repo found: " + repository.type + " (" + repository.path + ")");
     switch(repository.type){
         case 'git':
-//            getOptions(function(options){
-//                git.getRepoCommitsAndProcess({
-//                    branch : options.b,
-//                    range : argv._[0],
-//                    title : new RegExp(options.t),
-//                    meaning : Array.isArray(options.m) ? options.m : [options.m],
-//                    cwd : repository.path
-//                }, function (commits, fetchRepo) {
-//                    console.log(fetchRepo);
-//                });
-//            });
+            getOptions(function(options){
+                git.getRepoCommitsAndProcess({
+                    branch : options.b,
+                    range : argv._[0],
+                    title : new RegExp(options.t),
+                    meaning : Array.isArray(options.m) ? options.m : [options.m],
+                    cwd : repository.path
+                }, function (commits, fetchRepo) {
+                    //Render template here
+                });
+            });
             break;
         case 'repo':
             getOptions(function(options) {
                 repo.getReposAndCommitLogs(repository.path, {range: argv._[0]}, function(repoNamesAndCommitMessages){
                     repoNamesAndCommitMessages.forEach(function(repoNameAndCommitMessage){
-                            git.processCommits(repoNameAndCommitMessage.logOutput.toString(), function(processedCommits){
-                                console.log(processedCommits);
+                            git.processCommits({
+                                title : new RegExp(options.t),
+                                meaning : Array.isArray(options.m) ? options.m : [options.m]
+                            },
+                                repoNameAndCommitMessage.logOutput, function(processedCommits){
+                                    render(templatePath, {commits: processedCommits, fetchRepo: repoNameAndCommitMessage.fetchRepo});
                             });
                         });
                     });
@@ -100,39 +104,35 @@ function getOptions (callback) {
 	}
 }
 
-//var template = argv._[1];
-//if (!fs.existsSync(template)) {
-//	// Template name?
-//	if (template.match(/[a-z]+(\.ejs)?/)) {
-//		template = path.resolve(__dirname, "./templates/" + path.basename(template, ".ejs") + ".ejs");
-//	} else {
-//		require("optimist").showHelp();
-//		console.error("\nUnable to locate template file " + template);
-//		process.exit(1);
-//	}
-//}
-//
-//fs.readFile(template, function (err, templateContent) {
-//	if (err) {
-//		require("optimist").showHelp();
-//		console.error("\nUnable to locate template file " + argv._[1]);
-//		process.exit(5);
-//	} else {
-//		getOptions(function (options) {
-//			git.getRepoCommitsAndProcess({
-//				branch : options.b,
-//				range : argv._[0],
-//				title : new RegExp(options.t),
-//				meaning : Array.isArray(options.m) ? options.m : [options.m],
-//				cwd : options.p
-//			}, function (commits, fetchRepo) {
-//				var output = ejs.render(templateContent.toString(), {
-//					commits : commits,
-//                    fetchRepo : fetchRepo
-//				});
-//				process.stdout.write(output + "\n");
-//			});
-//		});
-//	}
-//});
+var template = argv._[1];
+var templatePath = "";
+if (!fs.existsSync(template)) {
+	// Template name?
+	if (template.match(/[a-z]+(\.ejs)?/)) {
+		templatePath = path.resolve(__dirname, "./templates/" + path.basename(template, ".ejs") + ".ejs");
+	} else {
+		require("optimist").showHelp();
+		console.error("\nUnable to locate template file " + template);
+		process.exit(1);
+	}
+}
+var i = 0;
+function render(templatePath, dataToRender){
+    fs.readFile(templatePath, function (err, templateContent) {
+        if (err) {
+            require("optimist").showHelp();
+            console.error("\nUnable to locate template file " + argv._[1]);
+            process.exit(5);
+        } else {
+            var output = ejs.render(templateContent.toString(), {
+                commits : dataToRender.commits,
+                fetchRepo : dataToRender.fetchRepo
+            });
+            fs.writeFile(dataToRender.fetchRepo.trim() + "(" + i +")" + "." + template, output, function(err){
+                //Later
+            });
+            i++;
+        }
+    });
+}
 
