@@ -43,7 +43,7 @@ var ejs = require("ejs");
 var path = require("path");
 
 traversal.findRepositories(process.cwd, function(repository){
-    console.log("New repo found: " + repository.type + " (" + repository.path + ")");
+    console.log("New %s repository found at %s" , repository.type, repository.path);
     switch(repository.type){
         case 'git':
             getOptions(function(options){
@@ -54,7 +54,7 @@ traversal.findRepositories(process.cwd, function(repository){
                     meaning : Array.isArray(options.m) ? options.m : [options.m],
                     cwd : repository.path
                 }, function (commits, fetchRepo) {
-                    //Render template here
+                    render(templatePath, {commits: commits, fetchRepo: fetchRepo});
                 });
             });
             break;
@@ -67,7 +67,7 @@ traversal.findRepositories(process.cwd, function(repository){
                                 meaning : Array.isArray(options.m) ? options.m : [options.m]
                             },
                                 repoNameAndCommitMessage.logOutput, function(processedCommits){
-                                    render(templatePath, {commits: processedCommits, fetchRepo: repoNameAndCommitMessage.fetchRepo});
+                                    render(templatePath, {commits: processedCommits, fetchRepo: path.basename(repoNameAndCommitMessage.fetchRepo)});
                             });
                         });
                     });
@@ -116,7 +116,7 @@ if (!fs.existsSync(template)) {
 		process.exit(1);
 	}
 }
-var i = 0;
+
 function render(templatePath, dataToRender){
     fs.readFile(templatePath, function (err, templateContent) {
         if (err) {
@@ -128,10 +128,12 @@ function render(templatePath, dataToRender){
                 commits : dataToRender.commits,
                 fetchRepo : dataToRender.fetchRepo
             });
-            fs.writeFile(dataToRender.fetchRepo.trim() + "(" + i +")" + "." + template, output, function(err){
-                //Later
+            var fileName = path.basename(dataToRender.fetchRepo.trim());
+            fs.writeFile(fileName + "." + template, output, function(err){
+                if(err !== null){
+                    console.log('Err: %s', err);
+                }
             });
-            i++;
         }
     });
 }
